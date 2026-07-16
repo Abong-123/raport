@@ -38,7 +38,6 @@
 ### 👨‍🏫 Guru
 - Dashboard khusus guru
 - Input & kelola nilai siswa
-- Cetak raport siswa
 - Monitoring kelas
 
 ### 🧑‍🎓 Murid
