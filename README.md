@@ -70,16 +70,16 @@ Berikut adalah tampilan antarmuka aplikasi:
 
 | Fitur | Screenshot |
 |-------|------------|
-| Halaman Login | `picture/login.png` |
-| Landing Page | `picture/landing.png` |
-| Admin - Manajemen User | `picture/admin-manajement_user.png` |
-| Admin - List User | `picture/admin-list_user.png` |
-| Admin - Pengaturan Kelas | `picture/admin-pengaturan_kelas.png` |
-| Admin - Kelola Ekstrakurikuler | `picture/admin-kelola_ekstrakulikuler.png` |
-| Admin - Rekap Kelas | `picture/admin-rekap_kelas.png` |
-| Dashboard Guru | `picture/dashboard_guru.png` |
-| Raport Murid | `picture/raport_murid.png` |
-| Cetak Raport | `picture/raport_murid_cetak.png` |
+| Halaman Login | ![Login](picture/login.png) |
+| Landing Page | ![Landing](picture/landing.png) |
+| Admin - Manajemen User | ![Manajemen User](picture/admin-manajement_user.png) |
+| Admin - List User | ![List User](picture/admin-list_user.png) |
+| Admin - Pengaturan Kelas | ![Pengaturan Kelas](picture/admin-pengaturan_kelas.png) |
+| Admin - Kelola Ekstrakurikuler | ![Ekstrakurikuler](picture/admin-kelola_ekstrakulikuler.png) |
+| Admin - Rekap Kelas | ![Rekap Kelas](picture/admin-rekap_kelas.png) |
+| Dashboard Guru | ![Dashboard Guru](picture/dashboard_guru.png) |
+| Raport Murid | ![Raport Murid](picture/raport_murid.png) |
+| Cetak Raport | ![Cetak Raport](picture/raport_murid_cetak.png) |
 
 ---
 
