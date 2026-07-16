@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Input Nilai</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f5f5f5; color: #1a1a1a; }
+    .topbar { background: #1e293b; color: #e2e8f0; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar a { color: #94a3b8; font-size: 13px; text-decoration: none; }
+    .topbar a:hover { color: #fff; }
+    .main { padding: 28px; max-width: 1000px; margin: 0 auto; }
+    .info-bar { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.07); display: flex; gap: 24px; flex-wrap: wrap; }
+    .info-item { font-size: 13px; }
+    .info-item span { font-weight: 600; }
+    .mode-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
+    .mode-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; color: #64748b; text-decoration: none; }
+    .mode-btn.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+    .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .alert-success { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+    /* Tabel nilai */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    input[type=number] { width: 80px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; text-align: center; outline: none; }
+    input[type=number]:focus { border-color: #6366f1; }
+    input[type=number]:disabled { background: #f8fafc; color: #94a3b8; }
+    textarea { width: 100%; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; resize: none; outline: none; height: 38px; }
+    textarea:disabled { background: #f8fafc; color: #94a3b8; }
+    .nilai-akhir { font-weight: 600; color: #1e293b; }
+    .predikat { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .predikat-A { background: #f0fdf4; color: #15803d; }
+    .predikat-B { background: #eff6ff; color: #1d4ed8; }
+    .predikat-C { background: #fffbeb; color: #b45309; }
+    .predikat-D { background: #fff7ed; color: #c2410c; }
+    .predikat-E { background: #fef2f2; color: #dc2626; }
+    .status-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-draft { background: #f8fafc; color: #94a3b8; }
+    .status-submitted { background: #fffbeb; color: #b45309; }
+    .status-published { background: #f0fdf4; color: #15803d; }
+    .btn { padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-submit { background: #0f766e; color: #fff; margin-left: 10px; }
+    .btn-submit:hover { background: #0d9488; }
+    .action-bar { display: flex; align-items: center; margin-top: 20px; gap: 10px; }
+    .submitted-note { font-size: 13px; color: #b45309; background: #fffbeb; padding: 10px 14px; border-radius: 8px; border: 1px solid #fde68a; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong>Input Nilai — {{ mapel.nama_mapel }}</strong>
+  <a href="/dashboard/guru">← Kembali ke dashboard</a>
+</div>
+
+<div class="main">
+  {% if request.query_params.get('saved') %}
+  <div class="alert-success">Nilai berhasil disimpan sebagai draft.</div>
+  {% endif %}
+
+  <div class="info-bar">
+    <div class="info-item">Kelas: <span>{{ kelas.tingkat }} {{ kelas.jurusan }} {{ kelas.nama_kelas }}</span></div>
+    <div class="info-item">Mapel: <span>{{ mapel.kode_mapel }} — {{ mapel.nama_mapel }}</span></div>
+    <div class="info-item">KKM: <span>{{ mapel.kkm }}</span></div>
+    <div class="info-item">Jumlah murid: <span>{{ murid_list | length }}</span></div>
+  </div>
+
+    {% set ns = namespace(semua_submitted=true, ada_nilai=false) %}
+    {% for m in murid_list %}
+    {% set r = existing_raports.get(m.id) %}
+    {% if r %}
+        {% set ns.ada_nilai = true %}
+        {% if r.status.value == 'draft' %}
+        {% set ns.semua_submitted = false %}
+        {% endif %}
+    {% else %}
+        {% set ns.semua_submitted = false %}
+    {% endif %}
+    {% endfor %}
+
+    <div class="card">
+    <form method="post" action="/dashboard/guru/simpan-nilai-async/{{ gm.kelas_mapel_id }}">
+        <table>
+        <thead>
+            <tr>
+            <th>#</th>
+            <th>Nama Murid</th>
+            <th>NIS</th>
+            <th>Pengetahuan</th>
+            <th>Keterampilan</th>
+            <th>Nilai Akhir</th>
+            <th>Predikat</th>
+            <th>Deskripsi</th>
+            <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in murid_list %}
+            {% set r = existing_raports.get(m.id) %}
+            {% set locked = r and r.status.value != 'draft' %}
+            <tr>
+            <td style="color:#94a3b8">{{ loop.index }}</td>
+            <td><strong>{{ m.nama }}</strong></td>
+            <td style="color:#94a3b8;font-size:12px">{{ m.nip_nis or '-' }}</td>
+
+            <td>
+                <input type="hidden" name="pengetahuan_{{ m.id }}"
+                    value="{{ r.nilai_pengetahuan if r and r.nilai_pengetahuan is not none else '' }}"
+                    id="hidden_p_{{ m.id }}">
+                {% if locked %}
+                <span style="font-size:14px;color:#94a3b8">
+                {{ r.nilai_pengetahuan if r and r.nilai_pengetahuan is not none else '-' }}
+                </span>
+                {% else %}
+                <input type="number" min="0" max="100" step="0.1"
+                    value="{{ r.nilai_pengetahuan if r and r.nilai_pengetahuan is not none else '' }}"
+                    oninput="sync('hidden_p_{{ m.id }}', this.value); hitungAkhir({{ m.id }})">
+                {% endif %}
+            </td>
+
+            <td>
+                <input type="hidden" name="keterampilan_{{ m.id }}"
+                    value="{{ r.nilai_keterampilan if r and r.nilai_keterampilan is not none else '' }}"
+                    id="hidden_k_{{ m.id }}">
+                {% if locked %}
+                <span style="font-size:14px;color:#94a3b8">
+                {{ r.nilai_keterampilan if r and r.nilai_keterampilan is not none else '-' }}
+                </span>
+                {% else %}
+                <input type="number" min="0" max="100" step="0.1"
+                    value="{{ r.nilai_keterampilan if r and r.nilai_keterampilan is not none else '' }}"
+                    oninput="sync('hidden_k_{{ m.id }}', this.value); hitungAkhir({{ m.id }})">
+                {% endif %}
+            </td>
+
+            <td>
+                <span class="nilai-akhir" id="akhir_{{ m.id }}">
+                {{ r.nilai_akhir if r and r.nilai_akhir is not none else '-' }}
+                </span>
+            </td>
+            <td>
+                <span class="predikat {% if r and r.predikat %}predikat-{{ r.predikat }}{% endif %}"
+                    id="predikat_{{ m.id }}">
+                {{ r.predikat if r and r.predikat else '-' }}
+                </span>
+            </td>
+
+            <td>
+                <input type="hidden" name="deskripsi_{{ m.id }}"
+                    value="{{ r.deskripsi if r and r.deskripsi else '' }}"
+                    id="hidden_d_{{ m.id }}">
+                {% if locked %}
+                <span style="font-size:13px;color:#94a3b8">
+                {{ r.deskripsi if r and r.deskripsi else '-' }}
+                </span>
+                {% else %}
+                <textarea placeholder="Catatan opsional..."
+                        oninput="sync('hidden_d_{{ m.id }}', this.value)">{{ r.deskripsi if r and r.deskripsi else '' }}</textarea>
+                {% endif %}
+            </td>
+
+            <td>
+                {% if r %}
+                <span class="status-badge status-{{ r.status.value }}">
+                {{ r.status.value | capitalize }}
+                </span>
+                {% else %}
+                <span class="status-badge status-draft">Belum diisi</span>
+                {% endif %}
+            </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+
+        <!-- Action bar — selalu tampil -->
+        {% set ns = namespace(semua_submitted=true, ada_nilai=false) %}
+        {% for m in murid_list %}
+        {% set r = existing_raports.get(m.id) %}
+        {% if r %}
+            {% set ns.ada_nilai = true %}
+            {% if r.status.value == 'draft' %}{% set ns.semua_submitted = false %}{% endif %}
+        {% else %}
+            {% set ns.semua_submitted = false %}
+        {% endif %}
+        {% endfor %}
+
+        <div class="action-bar">
+        {% if ns.semua_submitted and ns.ada_nilai %}
+        <div class="submitted-note">
+            Semua nilai sudah disubmit dan menunggu publikasi dari admin.
+        </div>
+        {% else %}
+        <button type="submit" class="btn btn-primary">Simpan Draft</button>
+        {% if ns.ada_nilai %}
+        <button type="submit"
+                formaction="/dashboard/guru/submit-nilai/{{ gm.kelas_mapel_id }}"
+                class="btn btn-submit"
+                onclick="return confirm('Submit semua nilai? Setelah submit tidak bisa diedit.')">
+            Submit ke Admin
+        </button>
+        {% else %}
+        <span style="font-size:13px;color:#94a3b8;margin-left:8px">
+            Isi minimal 1 nilai untuk bisa submit.
+        </span>
+        {% endif %}
+        {% endif %}
+        </div>
+
+    </form>
+    </div>
+</div>
+
+<script>
+const KKM = {{ mapel.kkm }};
+
+function sync(hiddenId, val) {
+  document.getElementById(hiddenId).value = val;
+}
+
+function hitungAkhir(muridId) {
+  const p = parseFloat(document.getElementById(`hidden_p_${muridId}`)?.value);
+  const k = parseFloat(document.getElementById(`hidden_k_${muridId}`)?.value);
+  const elAkhir    = document.getElementById(`akhir_${muridId}`);
+  const elPredikat = document.getElementById(`predikat_${muridId}`);
+  if (isNaN(p) || isNaN(k)) return;
+  const akhir = Math.round((p + k) / 2 * 10) / 10;
+  const pred  = akhir >= 90 ? 'A' : akhir >= 80 ? 'B' : akhir >= 70 ? 'C' : akhir >= KKM ? 'D' : 'E';
+  elAkhir.textContent = akhir;
+  elPredikat.textContent = pred;
+  elPredikat.className = `predikat predikat-${pred}`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Publish Nilai</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/publish-nilai.css') }}">
+</head>
+<body>
+<button class="menu-toggle" onclick="toggleSidebar()">
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+</button>
+
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+}
+
+// Add loading state to buttons on submit
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn && !submitBtn.classList.contains('loading')) {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        }
+    });
+});
+</script>
+
+<div class="sidebar">
+  <h2>Admin Panel</h2>
+  <a href="/dashboard/admin">Manajemen User</a>
+  <a href="/dashboard/admin/kelas">Pengaturan Kelas</a>
+  <a href="/dashboard/admin/nilai" class="active">Publish Nilai</a>
+  <a href="/dashboard/admin/ekskul">Ekstrakulikuler</a>
+  <a href="/dashboard/admin/rekap-kelas">Rekap Kelas</a>
+  <a href="/dashboard/admin/rekap-raport">Rekap Raport</a>
+  <div class="logout"><a href="/logout">Keluar</a></div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <h1>Publish Nilai & Reset Kelas</h1>
+    <p>Review nilai yang sudah disubmit guru, publish ke murid, dan atur jadwal reset kelas.</p>
+  </div>
+
+  {% if request.query_params.get('success') %}
+  <div class="alert-success">{{ request.query_params.get('success') }}</div>
+  {% endif %}
+
+  <!-- NILAI SUBMITTED -->
+  <div class="card">
+    <h3>Nilai Menunggu Publikasi</h3>
+    {% if submitted %}
+    <table>
+      <thead>
+        <tr>
+          <th>Kelas</th>
+          <th>Mata Pelajaran</th>
+          <th>Guru</th>
+          <th>Kurikulum</th>
+          <th>Jumlah Nilai</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for km in submitted %}
+        {% set jumlah = km.raports | selectattr('status.value', 'equalto', 'submitted') | list | length %}
+        <tr>
+          <td>
+            <span class="badge badge-kelas">
+              {{ km.kelas.tingkat }} — {{ km.kelas.jurusan }} — {{ km.kelas.nama_kelas }}
+            </span>
+          </td>
+          <td>
+            <span class="badge badge-mapel">{{ km.mapel.kode_mapel }}</span>
+            {{ km.mapel.nama_mapel }}
+          </td>
+          <td>
+            {% if km.guru_mengajar %}
+              {{ km.guru_mengajar[0].guru.nama }}
+            {% else %}
+              <span style="color:#94a3b8">-</span>
+            {% endif %}
+          </td>
+          <td style="font-size:12px;color:#64748b">
+            {{ km.kelas.kurikulum.tahun_ajaran }} {{ km.kelas.kurikulum.semester }}
+          </td>
+          <td>
+            <span class="badge badge-submitted">{{ jumlah }} nilai</span>
+          </td>
+          <td>
+            <form method="post" action="/dashboard/admin/nilai/publish/{{ km.id }}"
+                  onsubmit="return confirm('Publish semua nilai {{ km.mapel.nama_mapel }} untuk kelas ini? Murid akan langsung bisa melihat nilainya.')">
+              <button type="submit" class="btn btn-publish">Publish ke Murid</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Belum ada nilai yang disubmit oleh guru.</div>
+    {% endif %}
+  </div>
+
+  <!-- SET JADWAL RESET -->
+  <div class="card">
+    <h3>Jadwal Reset Kelas</h3>
+    <p style="font-size:13px;color:#64748b;margin-bottom:20px">
+      Setelah reset: murid kelas 12 dihapus, murid kelas 10 & 11 naik tingkat ke kurikulum aktif berikutnya.
+      Nilai yang sudah published tetap tersimpan di histori murid.
+    </p>
+
+    <form method="post" action="/dashboard/admin/nilai/set-reset" class="form-inline">
+      <div class="form-group">
+        <label>Kurikulum yang direset *</label>
+        <select name="kurikulum_id" required>
+          <option value="">-- Pilih kurikulum --</option>
+          {% for k in kurikulum_list %}
+          <option value="{{ k.id }}">{{ k.nama_kurikulum }} — {{ k.tahun_ajaran }} {{ k.semester }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tipe reset *</label>
+        <select name="tipe_reset" required>
+          <option value="ganti_semester">Ganti semester (murid tetap di kelas)</option>
+          <option value="naik_kelas">Akhir tahun — naik kelas</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tanggal reset *</label>
+        <input type="date" name="tanggal_reset" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Set Jadwal Reset</button>
+    </form>
+
+    {% if schedules %}
+    <div class="section-divider">Jadwal aktif</div>
+    {% for s in schedules %}
+    <div class="schedule-item">
+      <div class="schedule-info">
+        Kurikulum: <span>{{ s.kurikulum.nama_kurikulum }} — {{ s.kurikulum.tahun_ajaran }} {{ s.kurikulum.semester }}</span>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        Tipe: <span>{{ 'Ganti Semester' if s.tipe_reset == 'ganti_semester' else 'Naik Kelas' }}</span>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        Tanggal reset: <span>{{ s.tanggal_reset.strftime('%d %B %Y') }}</span>
+        {% if s.tanggal_reset <= now.date() %}
+        &nbsp;&nbsp;
+        <span style="background:#fef2f2;color:#dc2626;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">
+          Sudah melewati tanggal — belum dijalankan
+        </span>
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:8px">
+        {% if s.tanggal_reset <= now.date() %}
+        <form method="post" action="/dashboard/admin/nilai/jalankan-reset/{{ s.id }}"
+              onsubmit="return confirm('Jalankan reset sekarang? Proses ini tidak bisa dibatalkan.')">
+          <button type="submit" class="btn btn-publish"
+                  style="background:#0f766e;color:#fff;padding:6px 14px;font-size:13px">
+            Jalankan Sekarang
+          </button>
+        </form>
+        {% endif %}
+        <form method="post" action="/dashboard/admin/nilai/hapus-reset/{{ s.id }}">
+          <button type="submit" class="btn btn-danger"
+                  onclick="return confirm('Batalkan jadwal reset ini?')">
+            Batalkan
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  
+  <!-- LOG HISTORY RESET -->
+  {% set log_list = schedules_done %}
+  {% if log_list %}
+  <div class="card" style="margin-top:24px">
+    <h3>Riwayat Reset yang Sudah Dijalankan</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Kurikulum</th>
+          <th>Tipe</th>
+          <th>Tanggal Dijadwalkan</th>
+          <th>Dijalankan Pada</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in log_list %}
+        <tr>
+          <td>{{ s.kurikulum.nama_kurikulum }} — {{ s.kurikulum.tahun_ajaran }} {{ s.kurikulum.semester }}</td>
+          <td>
+            {% if s.tipe_reset == 'ganti_semester' %}
+            <span class="badge" style="background:#e0f2fe;color:#0369a1">Ganti Semester</span>
+            {% else %}
+            <span class="badge" style="background:#ede9fe;color:#5b21b6">Naik Kelas</span>
+            {% endif %}
+          </td>
+          <td>{{ s.tanggal_reset.strftime('%d %b %Y') }}</td>
+          <td>{{ s.dijalankan_at.strftime('%d %b %Y') if s.dijalankan_at else '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+</body>
+</html>

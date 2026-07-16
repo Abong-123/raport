@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pengaturan Kelas</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/kelas-manajement.css') }}">
+</head>
+<body>
+<button class="menu-toggle" onclick="toggleSidebar()">
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+</button>
+
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+}
+
+// Initialize accordion states
+document.querySelectorAll('.kelas-accordion-body').forEach(body => {
+    if (body.classList.contains('open')) {
+        body.previousElementSibling.classList.add('open');
+    }
+});
+</script>
+
+<div class="sidebar">
+  <h2>Admin Panel</h2>
+  <a href="/dashboard/admin">Manajemen User</a>
+  <a href="/dashboard/admin/kelas" class="active">Pengaturan Kelas</a>
+  <a href="/dashboard/admin/nilai">Publish Nilai</a>
+  <a href="/dashboard/admin/ekskul">Ekstrakulikuler</a>
+  <a href="/dashboard/admin/rekap-kelas">Rekap Kelas</a>
+  <a href="/dashboard/admin/rekap-raport">Rekap Raport</a>
+  <div class="logout"><a href="/logout">Keluar</a></div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <h1>Pengaturan Kelas</h1>
+    <p>Kelola kurikulum, mata pelajaran, kelas, dan penempatan guru serta murid.</p>
+  </div>
+
+  {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="alert-success">{{ success }}</div>{% endif %}
+
+  <!-- Filter Kurikulum -->
+  <div class="kurikulum-bar">
+    <label>Kurikulum aktif:</label>
+    <select onchange="gantiKurikulum(this.value)">
+      <option value="">-- Pilih kurikulum --</option>
+      {% for k in kurikulum_list %}
+      <option value="{{ k.id }}" {% if kurikulum_id == k.id %}selected{% endif %}>
+        {{ k.nama_kurikulum }} — {{ k.tahun_ajaran }} {{ k.semester }}
+        {% if k.is_active %}(Aktif){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    {% if kurikulum_dipilih %}
+    <span class="badge {% if kurikulum_dipilih.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+      {{ 'Aktif' if kurikulum_dipilih.is_active else 'Tidak Aktif' }}
+    </span>
+    {% endif %}
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn {% if active_tab=='kurikulum' %}active{% endif %}" onclick="switchTab('kurikulum')">1. Kurikulum</button>
+    <button class="tab-btn {% if active_tab=='mapel' %}active{% endif %}"     onclick="switchTab('mapel')">2. Mata Pelajaran</button>
+    <button class="tab-btn {% if active_tab=='kelas' %}active{% endif %}"     onclick="switchTab('kelas')">3. Kelas</button>
+    <button class="tab-btn {% if active_tab=='assign' %}active{% endif %}"    onclick="switchTab('assign')">4. Assign</button>
+  </div>
+
+  <!-- TAB 1: KURIKULUM -->
+  <div class="tab-panel {% if active_tab=='kurikulum' %}active{% endif %}" id="tab-kurikulum">
+    <div class="card">
+      <h3>Buat Kurikulum Baru</h3>
+      <form method="post" action="/dashboard/admin/kelas/kurikulum/create">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nama Kurikulum *</label>
+            <input type="text" name="nama_kurikulum" required placeholder="cth: Merdeka Belajar">
+          </div>
+          <div class="form-group">
+            <label>Tahun Ajaran *</label>
+            <input type="text" name="tahun_ajaran" required placeholder="cth: 2025/2026">
+          </div>
+          <div class="form-group">
+            <label>Semester *</label>
+            <select name="semester" required>
+              <option value="Ganjil">Ganjil</option>
+              <option value="Genap">Genap</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Deskripsi</label>
+            <input type="text" name="deskripsi" placeholder="Opsional">
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button type="submit" class="btn btn-primary">Buat Kurikulum</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Daftar Kurikulum</h3>
+      {% if kurikulum_list %}
+      <table>
+        <thead><tr><th>#</th><th>Nama</th><th>Tahun Ajaran</th><th>Semester</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for k in kurikulum_list %}
+          <tr>
+            <td style="color:#94a3b8">{{ loop.index }}</td>
+            <td><strong>{{ k.nama_kurikulum }}</strong>{% if k.deskripsi %}<br><span style="font-size:12px;color:#64748b">{{ k.deskripsi }}</span>{% endif %}</td>
+            <td>{{ k.tahun_ajaran }}</td>
+            <td>{{ k.semester }}</td>
+            <td><span class="badge {% if k.is_active %}badge-active{% else %}badge-inactive{% endif %}">{{ 'Aktif' if k.is_active else 'Tidak Aktif' }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">Belum ada kurikulum. Buat kurikulum terlebih dahulu.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- TAB 2: MATA PELAJARAN -->
+  <div class="tab-panel {% if active_tab=='mapel' %}active{% endif %}" id="tab-mapel">
+    {% if not kurikulum_id %}
+    <div class="card"><div class="empty">Pilih kurikulum terlebih dahulu di atas.</div></div>
+    {% else %}
+    <div class="card">
+      <h3>Tambah Mata Pelajaran</h3>
+      <form method="post" action="/dashboard/admin/kelas/mapel/create">
+        <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Kode Mapel *</label>
+            <input type="text" name="kode_mapel" required placeholder="cth: MTK, BIN, TKJ-01">
+          </div>
+          <div class="form-group">
+            <label>Nama Mata Pelajaran *</label>
+            <input type="text" name="nama_mapel" required placeholder="cth: Matematika">
+          </div>
+            <div class="form-group">
+                <label>Kategori *</label>
+                <select name="kategori" required>
+                    <option value="">-- Pilih kategori --</option>
+                    <optgroup label="Umum (semua jurusan)">
+                    <option value="Wajib Nasional">Wajib Nasional</option>
+                    <option value="Muatan Lokal">Muatan Lokal</option>
+                    </optgroup>
+                    <optgroup label="Produktif per jurusan">
+                    {% for j in jurusan_list %}
+                    <option value="Produktif {{ j }}">Produktif {{ j }}</option>
+                    {% endfor %}
+                    </optgroup>
+                </select>
+            </div>
+          <div class="form-group">
+            <label>KKM</label>
+            <input type="number" name="kkm" value="75" min="0" max="100">
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button type="submit" class="btn btn-primary">Tambah Mapel</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Daftar Mata Pelajaran — {{ kurikulum_dipilih.nama_kurikulum if kurikulum_dipilih }}</h3>
+      {% if mapel_list %}
+      <table>
+        <thead><tr><th>Kode</th><th>Nama</th><th>Kategori</th><th>KKM</th><th>Aksi</th></tr></thead>
+        <tbody>
+          {% for m in mapel_list %}
+          <tr>
+            <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:12px">{{ m.kode_mapel }}</code></td>
+            <td>{{ m.nama_mapel }}</td>
+            <td>{{ m.kategori or '-' }}</td>
+            <td>{{ m.kkm }}</td>
+            <td>
+              <form method="post" action="/dashboard/admin/kelas/mapel/delete/{{ m.id }}"
+                    onsubmit="return confirm('Hapus mapel {{ m.nama_mapel }}?')">
+                <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+                <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">Belum ada mata pelajaran untuk kurikulum ini.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- TAB 3: KELAS -->
+  <div class="tab-panel {% if active_tab=='kelas' %}active{% endif %}" id="tab-kelas">
+    {% if not kurikulum_id %}
+    <div class="card"><div class="empty">Pilih kurikulum terlebih dahulu di atas.</div></div>
+    {% else %}
+    <div class="card">
+      <h3>Buat Kelas Baru</h3>
+      <form method="post" action="/dashboard/admin/kelas/kelas/create">
+        <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tingkat *</label>
+            <select name="tingkat" required>
+              <option value="10">Kelas 10</option>
+              <option value="11">Kelas 11</option>
+              <option value="12">Kelas 12</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Jurusan *</label>
+            <select name="jurusan" required onchange="toggleJurusanLain(this)">
+              {% for j in jurusan_list %}
+              <option value="{{ j }}">{{ j }}</option>
+              {% endfor %}
+              <option value="Lainnya">Lainnya...</option>
+            </select>
+          </div>
+          <div class="form-group" id="jurusan-lain-group" style="display:none">
+            <label>Nama Jurusan</label>
+            <input type="text" name="jurusan_lain" placeholder="Tulis nama jurusan">
+          </div>
+          <div class="form-group">
+            <label>Nama Kelas *</label>
+            <input type="text" name="nama_kelas" required placeholder="cth: A, B, C">
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button type="submit" class="btn btn-primary">Buat Kelas</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Daftar Kelas — {{ kurikulum_dipilih.nama_kurikulum if kurikulum_dipilih }}</h3>
+      {% if kelas_list %}
+        {% set tingkat_groups = {} %}
+        {% for k in kelas_list %}
+          {% if k.tingkat not in tingkat_groups %}{% set _ = tingkat_groups.update({k.tingkat: []}) %}{% endif %}
+        {% endfor %}
+
+        {% for tingkat in ['10','11','12'] %}
+          {% set kelas_tingkat = kelas_list | selectattr('tingkat', 'equalto', tingkat) | list %}
+          {% if kelas_tingkat %}
+          <div class="tingkat-group">
+            <h4>Kelas {{ tingkat }}</h4>
+            <table>
+              <thead><tr><th>Nama Kelas</th><th>Jurusan</th><th>Wali Kelas</th><th>Mapel</th><th>Murid</th><th>Aksi</th></tr></thead>
+              <tbody>
+                {% for k in kelas_tingkat %}
+                <tr>
+                  <td><strong>{{ k.tingkat }} {{ k.jurusan }} {{ k.nama_kelas }}</strong></td>
+                  <td><span class="badge badge-jurusan">{{ k.jurusan }}</span></td>
+                  <td>
+                    {% if k.wali_kelas %}
+                      {{ k.wali_kelas.nama }}
+                    {% else %}
+                      <span style="color:#94a3b8">Belum diset</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ k.kelas_mapel | length }} mapel</td>
+                  <td>{{ k.murid | length }} murid</td>
+                  <td>
+                    <form method="post" action="/dashboard/admin/kelas/kelas/delete/{{ k.id }}"
+                          onsubmit="return confirm('Hapus kelas ini? Semua data terkait ikut terhapus.')">
+                      <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+                      <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+      <div class="empty">Belum ada kelas untuk kurikulum ini.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- TAB 4: ASSIGN -->
+  <div class="tab-panel {% if active_tab=='assign' %}active{% endif %}" id="tab-assign">
+    {% if not kurikulum_id %}
+    <div class="card"><div class="empty">Pilih kurikulum terlebih dahulu di atas.</div></div>
+    {% elif not kelas_list %}
+    <div class="card"><div class="empty">Buat kelas terlebih dahulu di tab Kelas.</div></div>
+    {% else %}
+    <p style="font-size:13px;color:#64748b;margin-bottom:16px">Klik nama kelas untuk membuka pengaturan assign mapel, guru, wali kelas, dan murid.</p>
+
+    {% for tingkat in ['10','11','12'] %}
+      {% set kelas_tingkat = kelas_list | selectattr('tingkat', 'equalto', tingkat) | list %}
+      {% if kelas_tingkat %}
+      <div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#6366f1">Kelas {{ tingkat }}</div>
+      {% for k in kelas_tingkat %}
+      <div class="kelas-accordion">
+        <div class="kelas-accordion-header" onclick="toggleAccordion(this)">
+          <span>{{ k.tingkat }} — {{ k.jurusan }} — {{ k.nama_kelas }}</span>
+          <span style="font-size:12px;color:#64748b">
+            {{ k.kelas_mapel|length }} mapel &nbsp;·&nbsp;
+            {{ k.murid|length }} murid &nbsp;·&nbsp;
+            Wali: {{ k.wali_kelas.nama if k.wali_kelas else 'Belum diset' }}
+          </span>
+        </div>
+        <div class="kelas-accordion-body">
+
+          <!-- Wali kelas -->
+          <div class="section-label">Wali Kelas</div>
+          <form method="post" action="/dashboard/admin/kelas/assign-wali/{{ k.id }}" style="display:flex;gap:10px;align-items:center;margin-bottom:4px">
+            <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+            <select name="wali_kelas_id" style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+              <option value="0">-- Tidak ada --</option>
+                {% for g in guru_list if (not g.jurusan) or (g.jurusan == k.jurusan) %}
+                    <option value="{{ g.id }}" {% if k.wali_kelas_id == g.id %}selected{% endif %}>
+                        {{ g.nama }}{% if g.jurusan %} · {{ g.jurusan }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary">Simpan</button>
+          </form>
+
+          <!-- Assign mapel ke kelas -->
+          <div class="section-label">Mata Pelajaran di Kelas Ini</div>
+          <form method="post" action="/dashboard/admin/kelas/assign-mapel/{{ k.id }}">
+            <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+            <form method="post" action="/dashboard/admin/kelas/assign-mapel/{{ k.id }}">
+            <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+            {% set assigned_mapel_ids = k.kelas_mapel | map(attribute='mapel_id') | list %}
+
+            {# Filter mapel: wajib/mulok semua masuk, produktif hanya jurusan yang cocok #}
+            {% set mapel_tersedia = mapel_list | selectattr('kategori') | list %}
+            {% set mapel_umum = mapel_tersedia
+                | selectattr('kategori', 'in', ['Wajib Nasional', 'Muatan Lokal'])
+                | list %}
+            {% set mapel_produktif = mapel_tersedia
+                | selectattr('kategori', 'equalto', 'Produktif ' ~ k.jurusan)
+                | list %}
+            {# Mapel tanpa kategori tetap ditampilkan #}
+            {% set mapel_tanpa_kategori = mapel_list
+                | selectattr('kategori', 'equalto', None)
+                | list %}
+
+            {# Wajib Nasional #}
+            {% if mapel_umum | selectattr('kategori', 'equalto', 'Wajib Nasional') | list %}
+            <div style="font-size:11px;font-weight:600;color:#6366f1;margin:10px 0 6px;text-transform:uppercase;letter-spacing:.05em">
+                Wajib Nasional
+            </div>
+            <div class="mapel-checkbox-grid">
+                {% for m in mapel_umum | selectattr('kategori', 'equalto', 'Wajib Nasional') | list %}
+                <label class="checkbox-item">
+                <input type="checkbox" name="mapel_ids" value="{{ m.id }}"
+                        {% if m.id in assigned_mapel_ids %}checked{% endif %}>
+                <span>{{ m.kode_mapel }} — {{ m.nama_mapel }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Muatan Lokal #}
+            {% if mapel_umum | selectattr('kategori', 'equalto', 'Muatan Lokal') | list %}
+            <div style="font-size:11px;font-weight:600;color:#0369a1;margin:10px 0 6px;text-transform:uppercase;letter-spacing:.05em">
+                Muatan Lokal
+            </div>
+            <div class="mapel-checkbox-grid">
+                {% for m in mapel_umum | selectattr('kategori', 'equalto', 'Muatan Lokal') | list %}
+                <label class="checkbox-item">
+                <input type="checkbox" name="mapel_ids" value="{{ m.id }}"
+                        {% if m.id in assigned_mapel_ids %}checked{% endif %}>
+                <span>{{ m.kode_mapel }} — {{ m.nama_mapel }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Produktif jurusan ini #}
+            {% if mapel_produktif %}
+            <div style="font-size:11px;font-weight:600;color:#b45309;margin:10px 0 6px;text-transform:uppercase;letter-spacing:.05em">
+                Produktif {{ k.jurusan }}
+            </div>
+            <div class="mapel-checkbox-grid">
+                {% for m in mapel_produktif %}
+                <label class="checkbox-item">
+                <input type="checkbox" name="mapel_ids" value="{{ m.id }}"
+                        {% if m.id in assigned_mapel_ids %}checked{% endif %}>
+                <span>{{ m.kode_mapel }} — {{ m.nama_mapel }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Tanpa kategori — tampil semua supaya tidak hilang #}
+            {% if mapel_tanpa_kategori %}
+            <div style="font-size:11px;font-weight:600;color:#94a3b8;margin:10px 0 6px;text-transform:uppercase;letter-spacing:.05em">
+                Lainnya (belum dikategorikan)
+            </div>
+            <div class="mapel-checkbox-grid">
+                {% for m in mapel_tanpa_kategori %}
+                <label class="checkbox-item">
+                <input type="checkbox" name="mapel_ids" value="{{ m.id }}"
+                        {% if m.id in assigned_mapel_ids %}checked{% endif %}>
+                <span>{{ m.kode_mapel }} — {{ m.nama_mapel }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if not mapel_umum and not mapel_produktif and not mapel_tanpa_kategori %}
+            <p style="color:#94a3b8;font-size:13px;padding:8px 0">
+                Belum ada mata pelajaran. Tambahkan dulu di tab Mata Pelajaran.
+            </p>
+            {% endif %}
+
+            <button type="submit" class="btn btn-sm btn-primary" style="margin-top:12px">Simpan Mapel</button>
+            </form>
+          </form>
+
+          <!-- Assign guru per mapel -->
+        {% if k.kelas_mapel %}
+        <div class="section-label">Guru per Mata Pelajaran</div>
+        {% for km in k.kelas_mapel %}
+        {% set guru_assigned = km.guru_mengajar[0].guru_id if km.guru_mengajar else 0 %}
+        <form method="post" action="/dashboard/admin/kelas/assign-guru/{{ km.id }}" class="guru-mapel-row">
+            <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+            <span>{{ km.mapel.kode_mapel }} — {{ km.mapel.nama_mapel }}</span>
+            <select name="guru_id">
+                <option value="0">-- Pilih guru --</option>
+                {% for g in guru_list if (not g.jurusan) or (g.jurusan == k.jurusan) %}
+                <option value="{{ g.id }}" {% if guru_assigned == g.id %}selected{% endif %}>
+                {{ g.nama }}{% if g.jurusan %} · {{ g.jurusan }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary">Simpan</button>
+        </form>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Assign murid -->
+        <div class="section-label">Murid di Kelas Ini</div>
+        <form method="post" action="/dashboard/admin/kelas/assign-murid/{{ k.id }}">
+            <input type="hidden" name="kurikulum_id" value="{{ kurikulum_id }}">
+            {% set assigned_murid_ids = k.murid | map(attribute='id') | list %}
+
+            {% if kurikulum_dipilih %}
+                {% set tahun_mulai = kurikulum_dipilih.tahun_ajaran[:4] | int %}
+                {% set angkatan_map = {'10': tahun_mulai, '11': tahun_mulai - 1, '12': tahun_mulai - 2} %}
+                {% set angkatan_target = angkatan_map[k.tingkat] %}
+                {% set murid_filtered = murid_list
+                | selectattr('jurusan', 'equalto', k.jurusan)
+                | selectattr('angkatan', 'equalto', angkatan_target)
+                | list %}
+            {% else %}
+                {% set murid_filtered = [] %}
+            {% endif %}
+
+        {% if murid_filtered %}
+        <p style="font-size:12px;color:#64748b;margin-bottom:10px">
+            Menampilkan {{ murid_filtered | length }} murid —
+            jurusan <strong>{{ k.jurusan }}</strong>,
+            angkatan <strong>{{ angkatan_target }}</strong>
+            (kelas {{ k.tingkat }})
+        </p>
+        <div class="checkbox-grid">
+            {% for m in murid_filtered %}
+            <label class="checkbox-item">
+            <input type="checkbox" name="murid_ids" value="{{ m.id }}"
+                    {% if m.id in assigned_murid_ids %}checked{% endif %}>
+            <span>
+                {{ m.nama }}
+                {% if m.nip_nis %}
+                <span style="color:#94a3b8;font-size:11px">({{ m.nip_nis }})</span>
+                {% endif %}
+            </span>
+        </label>
+        {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#94a3b8;font-size:13px;padding:12px 0">
+            Tidak ada murid jurusan <strong>{{ k.jurusan }}</strong>
+            angkatan <strong>{{ angkatan_target }}</strong>.
+            Pastikan murid sudah diisi jurusan dan angkatan saat dibuat.
+        </p>
+        {% endif %}
+        <button type="submit" class="btn btn-sm btn-primary" style="margin-top:10px">Simpan Murid</button>
+        </form>
+
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    {% endfor %}
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+function gantiKurikulum(id) {
+  if (!id) return;
+  const url = new URL(window.location);
+  url.searchParams.set('kurikulum_id', id);
+  window.location = url;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+  const url = new URL(window.location);
+  url.searchParams.set('tab', tab);
+  window.history.replaceState({}, '', url);
+}
+
+function toggleAccordion(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function toggleJurusanLain(sel) {
+  document.getElementById('jurusan-lain-group').style.display =
+    sel.value === 'Lainnya' ? 'flex' : 'none';
+}
+</script>
+</body>
+</html>

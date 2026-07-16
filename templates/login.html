@@ -1,0 +1,98 @@
+<!-- login.html -->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Login - Sistem Raport Sekolah</title>
+    <script>
+        tailwind = {
+            config: {
+                theme: {
+                    extend: {
+                        animation: {
+                            fadeUp: 'fadeUp 0.5s ease forwards'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/login.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- School Badge -->
+            <div class="school-badge">
+                <div class="school-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                    </svg>
+                </div>
+                <h1>Sistem Raport</h1>
+                <p>SMK Bina Bangsa</p>
+            </div>
+
+            <!-- Error Message (if any) -->
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <!-- Login Form -->
+            <form method="post" action="/login" class="space-y-5">
+                <div class="animate-fadeUp delay-2">
+                    <label class="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">Email</label>
+                    <input type="email" name="email" required placeholder="email@contoh.com" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+                </div>
+
+                <div class="animate-fadeUp delay-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Password</label>
+                        <a href="#" class="text-xs text-emerald-500 hover:text-emerald-600 transition-colors">Lupa password?</a>
+                    </div>
+                    <div class="relative">
+                        <input type="password" name="password" id="password" required placeholder="Masukkan password" class="input-field w-full rounded-xl px-4 py-3 pr-11 text-sm">
+                        <button type="button" onclick="togglePass()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 animate-fadeUp delay-3">
+                    <input type="checkbox" id="remember" name="remember" class="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                    <label for="remember" class="text-sm text-slate-600 cursor-pointer">Ingat saya</label>
+                </div>
+
+                <div class="animate-fadeUp delay-4 pt-1">
+                    <button type="submit" class="btn-primary w-full text-white font-semibold py-3 rounded-xl text-sm">
+                        Masuk
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function togglePass() {
+            const passwordInput = document.getElementById('password');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+        }
+
+        // Optional: Add loading state on form submit
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>

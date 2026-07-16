@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rekap Raport</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/rekap-raport.css') }}">
+</head>
+<body>
+<button class="menu-toggle" onclick="toggleSidebar()">
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+</button>
+
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+}
+
+// Auto-submit filter when changing selection
+document.querySelectorAll('.filter-bar select').forEach(select => {
+    select.addEventListener('change', function() {
+        this.closest('form').submit();
+    });
+});
+
+// Animate stats boxes on load
+document.addEventListener('DOMContentLoaded', function() {
+    const stats = document.querySelectorAll('.stat-box');
+    stats.forEach((stat, index) => {
+        stat.style.animation = `fadeInUp 0.4s ease ${index * 0.1}s backwards`;
+    });
+});
+</script>
+
+<div class="sidebar">
+  <h2>Admin Panel</h2>
+  <a href="/dashboard/admin">Manajemen User</a>
+  <a href="/dashboard/admin/kelas">Pengaturan Kelas</a>
+  <a href="/dashboard/admin/nilai">Publish Nilai</a>
+  <a href="/dashboard/admin/ekskul">Ekstrakulikuler</a>
+  <a href="/dashboard/admin/rekap-kelas">Rekap Kelas</a>
+  <a href="/dashboard/admin/rekap-raport" class="active">Rekap Raport</a>
+  <div class="logout"><a href="/logout">Keluar</a></div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <h1>Rekap Raport</h1>
+    <p>Lihat nilai, presensi, dan ekskul semua murid per kelas.</p>
+  </div>
+
+  <!-- Filter -->
+  <form method="get" action="/dashboard/admin/rekap-raport">
+    <div class="filter-bar">
+      <div class="form-group">
+        <label>Kurikulum</label>
+        <select name="kurikulum_id" onchange="this.form.submit()">
+          <option value="">-- Pilih kurikulum --</option>
+          {% for k in kurikulum_list %}
+          <option value="{{ k.id }}" {% if kurikulum_id == k.id %}selected{% endif %}>
+            {{ k.nama_kurikulum }} — {{ k.tahun_ajaran }} {{ k.semester }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if kelas_list %}
+      <div class="form-group">
+        <label>Kelas</label>
+        <select name="kelas_id" onchange="this.form.submit()">
+          <option value="">-- Pilih kelas --</option>
+          {% for k in kelas_list %}
+          <option value="{{ k.id }}" {% if kelas_id == k.id %}selected{% endif %}>
+            {{ k.tingkat }} — {{ k.jurusan }} — {{ k.nama_kelas }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if not kurikulum_id %}
+  <div class="card"><div class="empty">Pilih kurikulum terlebih dahulu.</div></div>
+
+  {% elif not kelas_id %}
+  <div class="card"><div class="empty">Pilih kelas untuk melihat rekap raport.</div></div>
+
+  {% elif not rekap %}
+  <div class="card"><div class="empty">Belum ada data murid di kelas ini.</div></div>
+
+  {% else %}
+
+  <!-- Statistik ringkas -->
+  {% set total_murid   = rekap | length %}
+  {% set total_naik    = rekap | selectattr('naik') | list | length %}
+  {% set total_tinggal = rekap | rejectattr('naik') | selectattr('semua_pub') | list | length %}
+  {% set total_belum   = rekap | rejectattr('semua_pub') | list | length %}
+  {% set rata_kelas    = (rekap | map(attribute='rata') | sum / total_murid) | round(1) if total_murid > 0 else 0 %}
+
+  <div class="stats-bar">
+    <div class="stat-box">
+      <div class="val">{{ total_murid }}</div>
+      <div class="lbl">Total murid</div>
+    </div>
+    <div class="stat-box green">
+      <div class="val">{{ total_naik }}</div>
+      <div class="lbl">Naik kelas</div>
+    </div>
+    <div class="stat-box red">
+      <div class="val">{{ total_tinggal }}</div>
+      <div class="lbl">Tinggal kelas</div>
+    </div>
+    <div class="stat-box amber">
+      <div class="val">{{ total_belum }}</div>
+      <div class="lbl">Belum published</div>
+    </div>
+    <div class="stat-box">
+      <div class="val">{{ rata_kelas }}</div>
+      <div class="lbl">Rata-rata kelas</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>
+      Detail Nilai — Kelas {{ kelas_dipilih.tingkat }}
+      {{ kelas_dipilih.jurusan }} {{ kelas_dipilih.nama_kelas }}
+    </h3>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nama Murid</th>
+          <th>NIS</th>
+          <th style="text-align:center">Rata-rata</th>
+          <th style="text-align:center">Nilai E</th>
+          <th style="text-align:center">Presensi (S/I/A)</th>
+          <th style="text-align:center">Ekskul</th>
+          <th style="text-align:center">Status Nilai</th>
+          <th style="text-align:center">Kenaikan</th>
+          <th style="text-align:center">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in rekap | sort(attribute='murid.nama') %}
+        {% set m = item.murid %}
+        {% set p = item.presensi %}
+        <tr>
+          <td style="color:#94a3b8">{{ loop.index }}</td>
+          <td><strong>{{ m.nama }}</strong></td>
+          <td style="color:#94a3b8;font-size:12px">{{ m.nip_nis or '-' }}</td>
+          <td style="text-align:center">
+            {% if item.rata > 0 %}
+            <strong style="font-size:15px;
+              color:{% if item.rata >= 80 %}#15803d{% elif item.rata >= 70 %}#b45309{% else %}#dc2626{% endif %}">
+              {{ item.rata }}
+            </strong>
+            {% else %}
+            <span style="color:#94a3b8">-</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if item.jumlah_e > 0 %}
+            <span style="background:#fef2f2;color:#dc2626;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700">
+              {{ item.jumlah_e }}
+            </span>
+            {% else %}
+            <span style="color:#15803d;font-weight:600">0</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if p %}
+            <span class="absen-item absen-s">S:{{ p.sakit }}</span>
+            <span class="absen-item absen-i">I:{{ p.izin }}</span>
+            <span class="absen-item absen-a">A:{{ p.alpha }}</span>
+            {% else %}
+            <span style="color:#94a3b8;font-size:12px">Belum diisi</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if item.nilai_ekskul %}
+            {% for ne in item.nilai_ekskul %}
+            <span style="font-size:11px;background:#fef3c7;color:#b45309;padding:2px 7px;border-radius:6px;display:inline-block;margin:1px">
+              {{ ne.ekskul.nama_ekskul }}: {{ ne.nilai or '-' }}
+            </span>
+            {% endfor %}
+            {% else %}
+            <span style="color:#94a3b8;font-size:12px">-</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if item.semua_pub %}
+            <span class="badge badge-pub">Published</span>
+            {% elif item.ada_submit %}
+            <span class="badge badge-submit">Submitted</span>
+            {% elif item.ada_draft %}
+            <span class="badge badge-draft">Draft</span>
+            {% else %}
+            <span class="badge badge-draft">Belum ada</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if item.semua_pub %}
+              {% if item.naik %}
+              <span class="badge badge-naik">Naik</span>
+              {% else %}
+              <span class="badge badge-tinggal">Tinggal</span>
+              {% endif %}
+            {% else %}
+            <span style="color:#94a3b8;font-size:12px">-</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            <button class="detail-toggle" onclick="toggleDetail('{{ m.id }}', this)">
+              Lihat ▾
+            </button>
+          </td>
+        </tr>
+
+        <!-- Detail row -->
+        <tr class="detail-row" id="detail_{{ m.id }}" style="display:none">
+          <td colspan="10">
+            <div class="detail-inner">
+              {% if item.raports %}
+              <table class="detail-table">
+                <thead>
+                  <tr>
+                    <th>Mata Pelajaran</th>
+                    <th style="text-align:center">Pengetahuan</th>
+                    <th style="text-align:center">Keterampilan</th>
+                    <th style="text-align:center">Nilai Akhir</th>
+                    <th style="text-align:center">Predikat</th>
+                    <th style="text-align:center">Status</th>
+                    <th>Deskripsi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in item.raports | sort(attribute='kelas_mapel.mapel.nama_mapel') %}
+                  <tr {% if r.predikat == 'E' %}style="background:#fff8f8"{% endif %}>
+                    <td>
+                      <strong>{{ r.kelas_mapel.mapel.nama_mapel }}</strong>
+                      <span style="display:block;font-size:10px;color:#94a3b8">
+                        {{ r.kelas_mapel.mapel.kode_mapel }}
+                      </span>
+                    </td>
+                    <td style="text-align:center">{{ r.nilai_pengetahuan if r.nilai_pengetahuan is not none else '-' }}</td>
+                    <td style="text-align:center">{{ r.nilai_keterampilan if r.nilai_keterampilan is not none else '-' }}</td>
+                    <td style="text-align:center;font-weight:700;
+                               color:{% if r.nilai_akhir and r.nilai_akhir < r.kelas_mapel.mapel.kkm %}#dc2626{% else %}#1e293b{% endif %}">
+                      {{ r.nilai_akhir if r.nilai_akhir is not none else '-' }}
+                    </td>
+                    <td style="text-align:center">
+                      {% if r.predikat %}
+                      <span class="predikat predikat-{{ r.predikat }}">{{ r.predikat }}</span>
+                      {% else %}-{% endif %}
+                    </td>
+                    <td style="text-align:center">
+                      <span class="badge badge-{{ r.status.value }}
+                        {% if r.status.value == 'published' %}badge-pub
+                        {% elif r.status.value == 'submitted' %}badge-submit
+                        {% else %}badge-draft{% endif %}">
+                        {{ r.status.value | capitalize }}
+                      </span>
+                    </td>
+                    <td style="font-size:11px;color:#475569">{{ r.deskripsi or '-' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <p style="color:#94a3b8;font-size:13px">Belum ada nilai untuk murid ini.</p>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function toggleDetail(muridId, btn) {
+  const row  = document.getElementById('detail_' + muridId);
+  const open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : 'table-row';
+  btn.textContent   = open ? 'Lihat ▾' : 'Tutup ▴';
+}
+</script>
+</body>
+</html>

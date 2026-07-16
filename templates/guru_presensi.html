@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Presensi & Ekskul</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f5f5f5; color: #1a1a1a; }
+    .topbar { background: #1e293b; color: #e2e8f0; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar a { color: #94a3b8; font-size: 13px; text-decoration: none; }
+    .topbar a:hover { color: #fff; }
+    .main { padding: 28px; max-width: 1100px; margin: 0 auto; }
+    .info-bar { background: #fff; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.07); display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; }
+    .info-bar span { font-weight: 600; }
+    .alert-success { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; }
+    .tab-btn { padding: 10px 20px; font-size: 14px; font-weight: 500; border: none; background: none; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .15s; }
+    .tab-btn.active { color: #0d9488; border-bottom-color: #0d9488; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    input[type=number], input[type=text], select {
+      width: 70px; padding: 6px 8px; border: 1px solid #e2e8f0;
+      border-radius: 6px; font-size: 14px; text-align: center; outline: none;
+    }
+    input[type=text] { width: 160px; text-align: left; }
+    select { width: 90px; text-align: left; }
+    input:focus, select:focus { border-color: #0d9488; }
+    .btn { padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
+    .btn-primary { background: #0d9488; color: #fff; }
+    .btn-primary:hover { background: #0f766e; }
+    .total-cell { font-weight: 600; color: #dc2626; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong>Presensi & Ekskul — Kelas {{ kelas.tingkat }} {{ kelas.jurusan }} {{ kelas.nama_kelas }}</strong>
+  <a href="/dashboard/guru">← Kembali</a>
+</div>
+
+<div class="main">
+  {% if saved %}
+  <div class="alert-success">Data berhasil disimpan.</div>
+  {% endif %}
+
+  <div class="info-bar">
+    <div>Kelas: <span>{{ kelas.tingkat }} — {{ kelas.jurusan }} — {{ kelas.nama_kelas }}</span></div>
+    <div>Kurikulum: <span>{{ kurikulum.nama_kurikulum }} {{ kurikulum.tahun_ajaran }} {{ kurikulum.semester }}</span></div>
+    <div>Jumlah murid: <span>{{ murid_list | length }}</span></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('presensi', this)">Presensi</button>
+    <button class="tab-btn" onclick="switchTab('ekskul', this)">Ekstrakulikuler</button>
+  </div>
+
+  <!-- TAB PRESENSI -->
+  <div class="tab-panel active" id="tab-presensi">
+    <div class="card">
+      <h3>Input Presensi Semester {{ kurikulum.semester }}</h3>
+      <form method="post" action="/dashboard/guru/presensi/{{ kelas.id }}/simpan">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nama Murid</th>
+              <th>NIS</th>
+              <th style="text-align:center;color:#b45309">Sakit</th>
+              <th style="text-align:center;color:#0369a1">Izin</th>
+              <th style="text-align:center;color:#dc2626">Alpha</th>
+              <th style="text-align:center">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in murid_list %}
+            {% set p = presensi_existing.get(m.id) %}
+            <tr>
+              <td style="color:#94a3b8">{{ loop.index }}</td>
+              <td><strong>{{ m.nama }}</strong></td>
+              <td style="color:#94a3b8;font-size:12px">{{ m.nip_nis or '-' }}</td>
+              <td style="text-align:center">
+                <input type="number" name="sakit_{{ m.id }}"
+                       min="0" max="999" value="{{ p.sakit if p else 0 }}"
+                       oninput="hitungTotal({{ m.id }})">
+              </td>
+              <td style="text-align:center">
+                <input type="number" name="izin_{{ m.id }}"
+                       min="0" max="999" value="{{ p.izin if p else 0 }}"
+                       oninput="hitungTotal({{ m.id }})">
+              </td>
+              <td style="text-align:center">
+                <input type="number" name="alpha_{{ m.id }}"
+                       min="0" max="999" value="{{ p.alpha if p else 0 }}"
+                       oninput="hitungTotal({{ m.id }})">
+              </td>
+              <td style="text-align:center">
+                <span class="total-cell" id="total_{{ m.id }}">
+                  {{ (p.sakit + p.izin + p.alpha) if p else 0 }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div style="margin-top:16px">
+          <button type="submit" class="btn btn-primary">Simpan Presensi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+    <!-- TAB EKSKUL -->
+    <!-- TAB EKSKUL -->
+    <div class="tab-panel" id="tab-ekskul">
+    <div class="card">
+        <h3>Input Ekstrakulikuler</h3>
+        {% if not ekskul_list %}
+        <p style="color:#94a3b8;font-size:13px">
+        Belum ada ekskul. Minta admin tambahkan dulu di menu Ekstrakulikuler.
+        </p>
+        {% else %}
+        <p style="font-size:13px;color:#64748b;margin-bottom:20px">
+        Setiap murid maksimal mengikuti <strong>2 ekskul</strong>.
+        Centang ekskul yang diikuti lalu isi nilainya.
+        </p>
+        <form method="post" action="/dashboard/guru/presensi/{{ kelas.id }}/simpan-ekskul">
+        {% for m in murid_list %}
+        {% set ne_murid = nilai_ekskul_existing.get(m.id, {}) %}
+        {% set ikut_count = ne_murid | length %}
+
+        <div style="background:#f8fafc;border-radius:10px;padding:16px 20px;margin-bottom:12px;border:1px solid #e2e8f0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <strong style="font-size:14px">{{ m.nama }}</strong>
+            <span style="font-size:12px;color:#64748b">
+                NIS: {{ m.nip_nis or '-' }} &nbsp;·&nbsp;
+                <span id="count_{{ m.id }}" style="font-weight:600;color:{% if ikut_count >= 2 %}#dc2626{% else %}#15803d{% endif %}">
+                {{ ikut_count }}/2 ekskul
+                </span>
+            </span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+            {% for e in ekskul_list %}
+            {% set ne = ne_murid.get(e.id) %}
+            {% set is_checked = ne is not none %}
+
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;transition:border-color .15s"
+                id="box_{{ m.id }}_{{ e.id }}">
+
+                <!-- Checkbox pilih ekskul -->
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:{% if is_checked %}10px{% else %}0{% endif %}">
+                <input type="checkbox"
+                        name="ekskul_ikut_{{ m.id }}_{{ e.id }}"
+                        value="1"
+                        {% if is_checked %}checked{% endif %}
+                        onchange="toggleEkskul({{ m.id }}, {{ e.id }}, this)"
+                        style="accent-color:#6366f1;width:16px;height:16px">
+                <span style="font-size:13px;font-weight:500">{{ e.nama_ekskul }}</span>
+                </label>
+
+                <!-- Form nilai, muncul kalau dicentang -->
+                <div id="nilai_{{ m.id }}_{{ e.id }}"
+                    style="display:{% if is_checked %}block{% else %}none{% endif %};margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <div>
+                    <label style="font-size:11px;color:#475569;display:block;margin-bottom:3px">Nilai</label>
+                    <select name="ekskul_{{ m.id }}_{{ e.id }}"
+                            style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;outline:none">
+                        <option value="">-</option>
+                        <option value="A" {% if ne and ne.nilai == 'A' %}selected{% endif %}>A — Sangat Baik</option>
+                        <option value="B" {% if ne and ne.nilai == 'B' %}selected{% endif %}>B — Baik</option>
+                        <option value="C" {% if ne and ne.nilai == 'C' %}selected{% endif %}>C — Cukup</option>
+                        <option value="D" {% if ne and ne.nilai == 'D' %}selected{% endif %}>D — Kurang</option>
+                    </select>
+                    </div>
+                    <div style="flex:1;min-width:140px">
+                    <label style="font-size:11px;color:#475569;display:block;margin-bottom:3px">Keterangan</label>
+                    <input type="text"
+                            name="ekskul_desk_{{ m.id }}_{{ e.id }}"
+                            value="{{ ne.deskripsi if ne and ne.deskripsi else '' }}"
+                            placeholder="Opsional..."
+                            style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;outline:none">
+                    </div>
+                </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div style="margin-top:20px">
+            <button type="submit" class="btn btn-primary">Simpan Ekskul</button>
+        </div>
+        </form>
+        {% endif %}
+    </div>
+    </div>
+</div>
+
+<script>
+function hitungTotal(mid) {
+  const s = parseInt(document.querySelector(`[name="sakit_${mid}"]`)?.value) || 0;
+  const i = parseInt(document.querySelector(`[name="izin_${mid}"]`)?.value)  || 0;
+  const a = parseInt(document.querySelector(`[name="alpha_${mid}"]`)?.value) || 0;
+  document.getElementById(`total_${mid}`).textContent = s + i + a;
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+function toggleEkskul(muridId, ekskulId, checkbox) {
+  const nilaiDiv = document.getElementById(`nilai_${muridId}_${ekskulId}`);
+  const box      = document.getElementById(`box_${muridId}_${ekskulId}`);
+  const countEl  = document.getElementById(`count_${muridId}`);
+
+  // Hitung berapa yang dicentang sekarang untuk murid ini
+  const allChecks = document.querySelectorAll(
+    `input[name^="ekskul_ikut_${muridId}_"]`
+  );
+  const jumlahCentang = Array.from(allChecks).filter(c => c.checked).length;
+
+  if (checkbox.checked) {
+    // Kalau sudah 2, batalkan centang ini
+    if (jumlahCentang > 2) {
+      checkbox.checked = false;
+      showLimitWarning(muridId);
+      return;
+    }
+    nilaiDiv.style.display = 'block';
+    box.style.borderColor  = '#6366f1';
+  } else {
+    nilaiDiv.style.display = 'none';
+    box.style.borderColor  = '#e2e8f0';
+    // Reset nilai kalau di-uncheck
+    const select = document.querySelector(`[name="ekskul_${muridId}_${ekskulId}"]`);
+    const desk   = document.querySelector(`[name="ekskul_desk_${muridId}_${ekskulId}"]`);
+    if (select) select.value = '';
+    if (desk)   desk.value   = '';
+  }
+
+  // Update counter
+  const finalCount = Array.from(allChecks).filter(c => c.checked).length;
+  countEl.textContent = `${finalCount}/2 ekskul`;
+  countEl.style.color = finalCount >= 2 ? '#dc2626' : '#15803d';
+
+  // Disable semua checkbox yang belum dicentang kalau sudah 2
+  allChecks.forEach(c => {
+    if (!c.checked) {
+      c.disabled = finalCount >= 2;
+      const cBox = document.getElementById(
+        `box_${muridId}_${c.name.split('_').pop()}`
+      );
+      if (cBox) cBox.style.opacity = finalCount >= 2 ? '0.5' : '1';
+    }
+  });
+}
+
+function showLimitWarning(muridId) {
+  const countEl = document.getElementById(`count_${muridId}`);
+  const orig    = countEl.textContent;
+  countEl.textContent = 'Maksimal 2 ekskul!';
+  countEl.style.color = '#dc2626';
+  setTimeout(() => {
+    countEl.textContent = orig;
+  }, 2000);
+}
+
+// Inisialisasi state disable saat halaman load
+document.addEventListener('DOMContentLoaded', () => {
+  // Kumpulkan semua murid_id yang ada
+  const muridIds = new Set();
+  document.querySelectorAll('input[name^="ekskul_ikut_"]').forEach(c => {
+    const parts = c.name.split('_');
+    muridIds.add(parts[2]);
+  });
+
+  muridIds.forEach(mid => {
+    const allChecks = document.querySelectorAll(`input[name^="ekskul_ikut_${mid}_"]`);
+    const jumlah    = Array.from(allChecks).filter(c => c.checked).length;
+    if (jumlah >= 2) {
+      allChecks.forEach(c => {
+        if (!c.checked) {
+          c.disabled = true;
+          const ekskulId = c.name.split('_').pop();
+          const cBox = document.getElementById(`box_${mid}_${ekskulId}`);
+          if (cBox) cBox.style.opacity = '0.5';
+        }
+      });
+    }
+  });
+});
+</script>
+</body>
+</html>

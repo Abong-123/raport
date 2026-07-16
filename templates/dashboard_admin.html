@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/admin-dashboard.css') }}">
+</head>
+<body>
+<button class="menu-toggle" onclick="toggleSidebar()">
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+</button>
+
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+}
+</script>
+
+<div class="sidebar">
+  <h2>Admin Panel</h2>
+  <a href="/dashboard/admin" class="active">Manajemen User</a>
+  <a href="/dashboard/admin/kelas">Pengaturan Kelas</a>
+  <a href="/dashboard/admin/nilai">Publish Nilai</a>
+  <a href="/dashboard/admin/ekskul">Ekstrakulikuler</a>
+  <a href="/dashboard/admin/rekap-kelas">Rekap Kelas</a>
+  <a href="/dashboard/admin/rekap-raport">Rekap Raport</a>
+  <div class="logout">
+    <a href="/logout">Keluar</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <h1>Manajemen User</h1>
+    <p>Halo, {{ nama }}. Kelola akun guru dan murid di sini.</p>
+  </div>
+
+  {% if request.query_params.get('error') %}
+  <div class="alert">{{ request.query_params.get('error') }}</div>
+  {% endif %}
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn {% if active_tab == 'guru' %}active{% endif %}" onclick="switchTab('guru')">
+      Guru ({{ guru_list|length }})
+    </button>
+    <button class="tab-btn {% if active_tab == 'murid' %}active{% endif %}" onclick="switchTab('murid')">
+      Murid ({{ murid_list|length }})
+    </button>
+  </div>
+
+  <!-- Tab Guru -->
+  <div class="tab-panel {% if active_tab == 'guru' %}active{% endif %}" id="tab-guru">
+    <div class="card">
+      <h3>Tambah Guru Baru</h3>
+      <form method="post" action="/dashboard/admin/create-user">
+        <input type="hidden" name="role" value="guru">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nama Lengkap *</label>
+            <input type="text" name="nama" required placeholder="Nama guru">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" name="email" required placeholder="email@sekolah.com">
+          </div>
+          <div class="form-group">
+            <label>Password *</label>
+            <input type="password" name="password" required placeholder="Min. 8 karakter">
+          </div>
+          <div class="form-group">
+            <label>NIP (opsional)</label>
+            <input type="text" name="nip_nis" placeholder="Nomor Induk Pegawai">
+          </div>
+          <div class="form-group">
+            <label>Jurusan (opsional)</label>
+            <select name="jurusan">
+                <option value="">-- Semua jurusan --</option>
+                <option value="Teknik Komputer & Jaringan">TKJ</option>
+                <option value="Rekayasa Perangkat Lunak">Rekayasa Perangkat Lunak</option>
+                <option value="Teknik Otomotif">Teknik Otomotif</option>
+                <option value="Akuntansi">Akuntansi</option>
+                <option value="Administrasi Perkantoran">Adm. Perkantoran</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <button type="submit" class="btn btn-primary">Tambah Guru</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Daftar Guru</h3>
+      {% if guru_list %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nama</th>
+            <th>Email</th>
+            <th>NIP</th>
+            <th>Tgl Dibuat</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in guru_list %}
+          <tr>
+            <td style="color:#94a3b8">{{ loop.index }}</td>
+            <td><strong>{{ g.nama }}</strong></td>
+            <td>{{ g.email }}</td>
+            <td>{{ g.nip_nis or '-' }}</td>
+            <td>{{ g.created_at.strftime('%d %b %Y') }}</td>
+            <td>
+              <span class="badge {% if g.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                {{ 'Aktif' if g.is_active else 'Nonaktif' }}
+              </span>
+            </td>
+            <td>
+              <div class="actions">
+                <form method="post" action="/dashboard/admin/toggle-user/{{ g.id }}">
+                  <input type="hidden" name="tab" value="guru">
+                  <button type="submit" class="btn btn-sm {% if g.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                    {{ 'Nonaktifkan' if g.is_active else 'Aktifkan' }}
+                  </button>
+                </form>
+                <form method="post" action="/dashboard/admin/delete-user/{{ g.id }}"
+                      onsubmit="return confirm('Hapus guru {{ g.nama }}? Data tidak bisa dikembalikan.')">
+                  <input type="hidden" name="tab" value="guru">
+                  <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:#94a3b8; text-align:center; padding: 32px 0;">Belum ada guru yang ditambahkan.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tab Murid -->
+  <div class="tab-panel {% if active_tab == 'murid' %}active{% endif %}" id="tab-murid">
+    <div class="card">
+      <h3>Tambah Murid Baru</h3>
+      <form method="post" action="/dashboard/admin/create-user">
+        <input type="hidden" name="role" value="murid">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nama Lengkap *</label>
+            <input type="text" name="nama" required placeholder="Nama murid">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" name="email" required placeholder="email@sekolah.com">
+          </div>
+          <div class="form-group">
+            <label>Password *</label>
+            <input type="password" name="password" required placeholder="Min. 8 karakter">
+          </div>
+          <div class="form-group">
+            <label>NIS (opsional)</label>
+            <input type="text" name="nip_nis" placeholder="Nomor Induk Siswa">
+          </div>
+
+          <div class="form-group">
+              <label>Jurusan *</label>
+              <select name="jurusan" required>
+                  <option value="">-- Pilih jurusan --</option>
+                  <option value="Teknik Komputer & Jaringan">TKJ</option>
+                  <option value="Rekayasa Perangkat Lunak">Rekayasa Perangkat Lunak</option>
+                  <option value="Teknik Otomotif">Teknik Otomotif</option>
+                  <option value="Akuntansi">Akuntansi</option>
+                  <option value="Administrasi Perkantoran">Adm. Perkantoran</option>
+              </select>
+          </div>
+          <div class="form-group">
+              <label>Angkatan *</label>
+              <input type="number" name="angkatan" required value="2026" min="2020" max="2099" placeholder="Tahun masuk, cth: 2026">
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <button type="submit" class="btn btn-primary">Tambah Murid</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Daftar Murid</h3>
+      {% if murid_list %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nama</th>
+            <th>Email</th>
+            <th>NIS</th>
+            <th>Tgl Dibuat</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in murid_list %}
+          <tr>
+            <td style="color:#94a3b8">{{ loop.index }}</td>
+            <td><strong>{{ m.nama }}</strong></td>
+            <td>{{ m.email }}</td>
+            <td>{{ m.nip_nis or '-' }}</td>
+            <td>{{ m.created_at.strftime('%d %b %Y') }}</td>
+            <td>
+              <span class="badge {% if m.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                {{ 'Aktif' if m.is_active else 'Nonaktif' }}
+              </span>
+            </td>
+            <td>
+              <div class="actions">
+                <form method="post" action="/dashboard/admin/toggle-user/{{ m.id }}">
+                  <input type="hidden" name="tab" value="murid">
+                  <button type="submit" class="btn btn-sm {% if m.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                    {{ 'Nonaktifkan' if m.is_active else 'Aktifkan' }}
+                  </button>
+                </form>
+                <form method="post" action="/dashboard/admin/delete-user/{{ m.id }}"
+                      onsubmit="return confirm('Hapus murid {{ m.nama }}? Data tidak bisa dikembalikan.')">
+                  <input type="hidden" name="tab" value="murid">
+                  <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:#94a3b8; text-align:center; padding: 32px 0;">Belum ada murid yang ditambahkan.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`#tab-${tab}`).classList.add('active');
+    event.target.classList.add('active');
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', url);
+  }
+</script>
+</body>
+</html>

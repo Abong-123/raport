@@ -1,0 +1,3 @@
+kelasx = {bahasa_indonesia, ekonomi, matematika, fisika, pemrograman_dasar, olahraga, bahasa_inggris, agama, pengenalan_ai, biologi}
+kelasxii = { bahasa_indonesia, bahasa_inggris, sejarah, agama, seni_budaya, fisika,.ekonomi, manajement_server, olahraga, iot, kimia, matematika}
+kelasxIII = { fisika, kimia, matematika, sejarah, demografi, cloud_computing, bahasa_inggris, iot, kewirausahaan}

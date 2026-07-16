@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Guru</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/guru-dashboard.css') }}">
+</head>
+<body>
+<button class="menu-toggle" onclick="toggleSidebar()">
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+</button>
+
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+}
+
+// Add animation to table rows
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach((row, index) => {
+        row.style.animationDelay = `${index * 0.05}s`;
+    });
+    
+    // Animate progress bars
+    const progressBars = document.querySelectorAll('.progress-bar-fill');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 100);
+    });
+});
+</script>
+
+<div class="sidebar">
+  <h2>Guru Panel</h2>
+  <a href="/dashboard/guru" class="active">Input Nilai</a>
+  <a href="/ganti-password">Ganti Password</a>
+  <div class="logout"><a href="/logout">Keluar</a></div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <h1>Dashboard Guru</h1>
+    <p>Halo, {{ nama }}. Berikut daftar kelas dan mata pelajaran yang kamu ampu.</p>
+  </div>
+
+  <!-- Notif setelah simpan presensi/ekskul -->
+  {% if request.query_params.get('notif') == 'presensi_tersimpan' %}
+  <div style="padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:14px;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0">
+    Presensi berhasil disimpan.
+  </div>
+  {% elif request.query_params.get('notif') == 'ekskul_tersimpan' %}
+  <div style="padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:14px;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0">
+    Data ekstrakulikuler berhasil disimpan.
+  </div>
+  {% endif %}
+
+  <!-- Card 1: Kelas yang diampu -->
+  <div class="card">
+    <h3>Kelas yang Diampu</h3>
+    {% if mengajar %}
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Kelas</th>
+          <th>Mata Pelajaran</th>
+          <th>Kurikulum</th>
+          <th>Progress Nilai</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for gm in mengajar %}
+        {% set total_murid     = gm.kelas_mapel.kelas.murid | length %}
+        {% set total_raport    = gm.raports | length %}
+        {% set submitted_count = gm.raports | selectattr('status.value', 'equalto', 'submitted') | list | length %}
+        {% set published_count = gm.raports | selectattr('status.value', 'equalto', 'published') | list | length %}
+        {% set semua_submitted = (submitted_count + published_count) >= total_murid and total_murid > 0 %}
+        <tr>
+          <td style="color:#94a3b8">{{ loop.index }}</td>
+          <td>
+            <span class="badge badge-kelas">
+              {{ gm.kelas_mapel.kelas.tingkat }} —
+              {{ gm.kelas_mapel.kelas.jurusan }} —
+              {{ gm.kelas_mapel.kelas.nama_kelas }}
+            </span>
+          </td>
+          <td>
+            <span class="badge badge-mapel">{{ gm.kelas_mapel.mapel.kode_mapel }}</span>
+            {{ gm.kelas_mapel.mapel.nama_mapel }}
+          </td>
+          <td style="font-size:12px;color:#64748b">
+            {{ gm.kelas_mapel.kelas.kurikulum.tahun_ajaran }}
+            {{ gm.kelas_mapel.kelas.kurikulum.semester }}
+          </td>
+          <td>
+            {% if total_murid > 0 %}
+              {{ total_raport }}/{{ total_murid }}
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" style="width:{{ (total_raport / total_murid * 100) | int }}%"></div>
+              </div>
+            {% else %}
+              <span style="color:#94a3b8;font-size:12px">Belum ada murid</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if published_count == total_murid and total_murid > 0 %}
+              <span class="badge badge-published">Published</span>
+            {% elif semua_submitted %}
+              <span class="badge badge-submitted">Menunggu admin</span>
+            {% elif total_raport > 0 %}
+              <span class="badge badge-draft">Draft</span>
+            {% else %}
+              <span class="badge badge-draft">Belum diisi</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if published_count == total_murid and total_murid > 0 %}
+              <a href="/dashboard/guru/input/{{ gm.kelas_mapel_id }}" class="btn btn-disabled">Lihat Nilai</a>
+            {% elif semua_submitted %}
+              <a href="/dashboard/guru/input/{{ gm.kelas_mapel_id }}" class="btn btn-disabled">Menunggu Publish</a>
+            {% else %}
+              <a href="/dashboard/guru/input/{{ gm.kelas_mapel_id }}" class="btn btn-primary">Input Nilai</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Kamu belum di-assign ke kelas manapun. Hubungi admin.</div>
+    {% endif %}
+  </div>
+
+  <!-- Card 2: Tugas wali kelas (terpisah dari card di atas) -->
+  {% if wali_kelas_list %}
+  <div class="card">
+    <h3>Tugas Wali Kelas</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Kelas</th>
+          <th>Kurikulum</th>
+          <th style="text-align:center">Presensi</th>
+          <th style="text-align:center">Ekskul</th>
+          <th style="text-align:center">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for k in wali_kelas_list %}
+        {% set st             = presensi_status.get(k.id, {}) %}
+        {% set sudah_presensi = st.get('sudah_presensi', false) %}
+        {% set ada_ekskul     = st.get('ada_ekskul', false) %}
+        {% set semua_selesai  = sudah_presensi and ada_ekskul %}
+        <tr>
+          <td><strong>{{ k.tingkat }} — {{ k.jurusan }} — {{ k.nama_kelas }}</strong></td>
+          <td style="font-size:12px;color:#64748b">
+            {{ k.kurikulum.tahun_ajaran }} {{ k.kurikulum.semester }}
+          </td>
+
+          <td style="text-align:center">
+            {% if sudah_presensi %}
+            <span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">
+              ✓ Sudah diisi
+              <span style="font-size:11px;color:#86efac">({{ st.jumlah_presensi }}/{{ st.jumlah_murid }})</span>
+            </span>
+            {% else %}
+            <span style="display:inline-flex;align-items:center;gap:4px;background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">
+              ○ Belum diisi
+              {% if st.get('jumlah_presensi', 0) > 0 %}
+              <span style="font-size:11px;color:#fca5a5">({{ st.jumlah_presensi }}/{{ st.jumlah_murid }})</span>
+              {% endif %}
+            </span>
+            {% endif %}
+          </td>
+
+          <td style="text-align:center">
+            {% if ada_ekskul %}
+            <span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">
+              ✓ Sudah diisi
+            </span>
+            {% else %}
+            <span style="display:inline-flex;align-items:center;gap:4px;background:#fffbeb;color:#b45309;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">
+              ○ Belum diisi
+            </span>
+            {% endif %}
+          </td>
+
+          <td style="text-align:center">
+            {% if semua_selesai %}
+            <a href="/dashboard/guru/presensi/{{ k.id }}"
+               style="display:inline-block;padding:7px 16px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none">
+              Edit Presensi & Ekskul
+            </a>
+            {% elif sudah_presensi and not ada_ekskul %}
+            <a href="/dashboard/guru/presensi/{{ k.id }}"
+               style="display:inline-block;padding:7px 16px;background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none">
+              Lengkapi Ekskul
+            </a>
+            {% else %}
+            <a href="/dashboard/guru/presensi/{{ k.id }}"
+               style="display:inline-block;padding:7px 16px;background:#0d9488;color:#fff;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none">
+              Input Presensi & Ekskul
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+</body>
+</html>
